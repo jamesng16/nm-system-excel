@@ -27,7 +27,7 @@ Bản lộ trình phát triển của dự án Excel Uploader & Processor. Hệ 
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Thiết lập cấu hình local Supabase Docker và viết SQL migration khởi tạo database schema.
+- [x] 01-01: Thiết lập cấu hình local Supabase Docker và viết SQL migration khởi tạo database schema.
 - [ ] 01-02: Bootstrap Frontend React Vite TSX, tích hợp Tailwind CSS và tạo khung thư mục module-level Clean Architecture.
 
 ### Phase 2: Auth and RLS Configuration
@@ -94,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Local Supabase & DB Migrations | 0/2 | Not started | - |
+| 1. Local Supabase & DB Migrations | 1/2 | In Progress|  |
 | 2. Auth and RLS Configuration | 0/2 | Not started | - |
 | 3. Chunked Upload & Tracking | 0/2 | Not started | - |
 | 4. Async Deno Stream Parser & Ingestion | 0/2 | Not started | - |

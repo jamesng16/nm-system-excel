@@ -7,8 +7,8 @@
 
 ### 1. Môi trường & Kiến trúc (Infrastructure & Clean Architecture)
 
-- [ ] **INF-01**: Chạy cơ sở dữ liệu Supabase cục bộ với đầy đủ cấu hình qua Docker Compose (bao gồm Auth, Storage, Database PostgreSQL và Studio UI quản lý).
-- [ ] **INF-02**: Áp dụng các script SQL migration thô để khởi tạo cấu trúc bảng, mối quan hệ và dữ liệu ban đầu trên Postgres.
+- [x] **INF-01**: Chạy cơ sở dữ liệu Supabase cục bộ với đầy đủ cấu hình qua Docker Compose (bao gồm Auth, Storage, Database PostgreSQL và Studio UI quản lý).
+- [x] **INF-02**: Áp dụng các script SQL migration thô để khởi tạo cấu trúc bảng, mối quan hệ và dữ liệu ban đầu trên Postgres.
 - [ ] **INF-03**: Cấu trúc thư mục frontend React Vite + TSX theo mô hình Clean Architecture phân rã theo Module với các lớp tự chứa:
   - `src/modules/auth/{domain, usecases, adapters, presentation}`
   - `src/modules/excel-processor/{domain, usecases, adapters, presentation}`
@@ -55,8 +55,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INF-01 | Phase 1: Local Supabase & DB Migrations | Pending |
-| INF-02 | Phase 1: Local Supabase & DB Migrations | Pending |
+| INF-01 | Phase 1: Local Supabase & DB Migrations | Complete |
+| INF-02 | Phase 1: Local Supabase & DB Migrations | Complete |
 | INF-03 | Phase 1: Local Supabase & DB Migrations | Pending |
 | AUTH-01 | Phase 2: Auth and RLS Configuration | Pending |
 | AUTH-02 | Phase 2: Auth and RLS Configuration | Pending |

@@ -1,0 +1,29 @@
+{
+  "agents": [
+    {
+      "agent_id": "afc4d722a3d56ea36",
+      "agent_type": "gsd-project-researcher",
+      "started_at": "2026-05-20T09:37:55.442Z",
+      "parent_mode": "none",
+      "status": "running"
+    },
+    {
+      "agent_id": "a59164747d8594a70",
+      "agent_type": "gsd-phase-researcher",
+      "started_at": "2026-05-20T09:41:01.645Z",
+      "parent_mode": "none",
+      "status": "running"
+    },
+    {
+      "agent_id": "a1868288dbe2acacc",
+      "agent_type": "gsd-phase-researcher",
+      "started_at": "2026-05-20T09:44:04.238Z",
+      "parent_mode": "none",
+      "status": "running"
+    }
+  ],
+  "total_spawned": 3,
+  "total_completed": 0,
+  "total_failed": 0,
+  "last_updated": "2026-05-20T09:44:04.339Z"
+}

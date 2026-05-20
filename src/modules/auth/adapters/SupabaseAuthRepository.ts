@@ -1,14 +1,11 @@
 import { IAuthRepository } from '../domain/repositories/IAuthRepository';
 import { User } from '../domain/entities/User';
-// Nhập supabase client phòng trường hợp cần dùng trong tương lai
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { supabase } from '../../../shared/infra/supabase';
 
 export class SupabaseAuthRepository implements IAuthRepository {
   private currentUser: User | null = null;
   private listeners: ((user: User | null) => void)[] = [];
 
-  async login(email: string, password: string): Promise<User> {
+  async login(email: string, _password: string): Promise<User> {
     // Giả lập độ trễ mạng
     await new Promise((resolve) => setTimeout(resolve, 800));
 

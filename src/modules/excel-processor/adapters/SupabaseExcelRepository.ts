@@ -1,8 +1,6 @@
 import { IExcelRepository } from '../domain/repositories/IExcelRepository';
 import { ExcelFile } from '../domain/entities/ExcelFile';
 import { ExcelRow } from '../domain/entities/ExcelRow';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { supabase } from '../../../shared/infra/supabase';
 
 export class SupabaseExcelRepository implements IExcelRepository {
   private files: ExcelFile[] = [];

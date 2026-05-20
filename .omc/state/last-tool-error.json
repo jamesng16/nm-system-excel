@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"node ~/.claude/get-shit-done/bin/gsd-tools.cjs query init.execute-phase 1\",\"description\":\"Query init.execute-phase via node gsd-tools.cjs\"}",
-  "error": "Exit code 1\nError: Unknown command: query",
-  "timestamp": "2026-05-20T09:54:50.162Z",
-  "retry_count": 1
-}

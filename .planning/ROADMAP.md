@@ -6,7 +6,7 @@ Bản lộ trình phát triển của dự án Excel Uploader & Processor. Hệ 
 
 ## Phases
 
-- [ ] **Phase 1: Local Supabase & DB Migrations** - Khởi động local Supabase Docker, cấu hình API/DB ports, chạy SQL migrations và bootstrap bộ khung module-level Clean Architecture cho React.
+- [x] **Phase 1: Local Supabase & DB Migrations** - Khởi động local Supabase Docker, cấu hình API/DB ports, chạy SQL migrations và bootstrap bộ khung module-level Clean Architecture cho React. (completed 2026-05-20)
 - [ ] **Phase 2: Auth and RLS Configuration** - Thiết lập đăng nhập, quản lý vai trò Admin/Guest, viết các quy định Row Level Security (RLS) bảo mật dữ liệu ở tầng database và ẩn giao diện ghi sửa đối với Guest.
 - [ ] **Phase 3: Chunked Upload & Tracking** - Xây dựng giao diện upload file lớn không bị timeout trên Client, đồng bộ trạng thái tệp Ingestion trong database.
 - [ ] **Phase 4: Async Deno Stream Parser & Ingestion** - Phát triển parser stream trên Deno Edge Function để parse file lớn tiết kiệm RAM, trích xuất ảnh nhúng lưu lên storage, bulk insert dữ liệu vào Postgres.
@@ -28,7 +28,7 @@ Bản lộ trình phát triển của dự án Excel Uploader & Processor. Hệ 
 
 Plans:
 - [x] 01-01: Thiết lập cấu hình local Supabase Docker và viết SQL migration khởi tạo database schema.
-- [ ] 01-02: Bootstrap Frontend React Vite TSX, tích hợp Tailwind CSS và tạo khung thư mục module-level Clean Architecture.
+- [x] 01-02: Bootstrap Frontend React Vite TSX, tích hợp Tailwind CSS và tạo khung thư mục module-level Clean Architecture.
 
 ### Phase 2: Auth and RLS Configuration
 **Goal**: Tích hợp xác thực người dùng và phân quyền truy cập thông qua Postgres RLS và logic client React.
@@ -94,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Local Supabase & DB Migrations | 1/2 | In Progress|  |
+| 1. Local Supabase & DB Migrations | 2/2 | Complete   | 2026-05-20 |
 | 2. Auth and RLS Configuration | 0/2 | Not started | - |
 | 3. Chunked Upload & Tracking | 0/2 | Not started | - |
 | 4. Async Deno Stream Parser & Ingestion | 0/2 | Not started | - |

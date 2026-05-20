@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-20T10:53:04.163Z"
+last_updated: "2026-05-20T10:59:40.063Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 20
 ---
 
 # Trạng thái Dự án
@@ -25,7 +25,7 @@ Xem thêm: .planning/PROJECT.md (cập nhật 2026-05-20)
 ## Current Position
 
 Phase: 1 of 5 (Local Supabase & DB Migrations)
-Plan: 1 of 2
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0% (0/10 plans completed)
 
 *Updated after each plan completion*
 | Phase 01-local-supabase-db-migrations P01-01 | 25min | 3 tasks | 3 files |
+| Phase 01-local-supabase-db-migrations P01-02 | 30min | 4 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Các quyết định gần đây ảnh hưởng đến công việc hiện tại
 - [Init]: Cấu hình model subagents sang `gemini-3.5-flash-high` để tăng tốc phản hồi.
 - [Phase 01-local-supabase-db-migrations]: Disabled edge_runtime locally to bypass JSR package resolution timeout in restricted network environment. — Starting it locally attempted to download packages from jsr.io and failed with 403 Forbidden in sandbox.
 - [Phase 01-local-supabase-db-migrations]: Configured Adminer as a lightweight backup database Studio mapping to port 54323. — Provides a drop-in replacement for Supabase Studio without global CLI or Kong/GoTrue setup dependencies.
+- [Phase 01-local-supabase-db-migrations]: Áp dụng Clean Architecture ở cấp độ Module để cô lập hoàn toàn domain logic khỏi các framework bên ngoài (React/Supabase)
+- [Phase 01-local-supabase-db-migrations]: Xây dựng các lớp Adapter Shell trả về dữ liệu Mock và giả lập xử lý bất đồng bộ, giúp phát triển và kiểm thử giao diện React độc lập trước khi kết nối trực tiếp với backend
 
 ### Pending Todos
 

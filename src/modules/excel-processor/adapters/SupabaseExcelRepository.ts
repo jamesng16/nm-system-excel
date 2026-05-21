@@ -27,13 +27,11 @@ export class SupabaseExcelRepository implements IExcelRepository {
 
     try {
       // 2. Tạo signed upload URL từ Supabase Storage
-      const sanitizedName = file.name.normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .replace(/[đĐ]/g, "d")
-        .replace(/[^a-zA-Z0-9.-]/g, "_");
+      // Sử dụng tên cố định 'file.xlsx' bên trong thư mục mang ID của file
+      // Cách này giúp loại bỏ hoàn toàn lỗi ký tự đặc biệt trong URL
       const { data: signedData, error: signedError } = await supabase.storage
         .from('excel-uploads')
-        .createSignedUploadUrl(`${fileId}/${sanitizedName}`);
+        .createSignedUploadUrl(`${fileId}/file.xlsx`);
 
       if (signedError || !signedData) {
         throw new Error(`Lỗi tạo Signed Upload URL: ${signedError?.message || 'Không có phản hồi'}`);
@@ -43,7 +41,8 @@ export class SupabaseExcelRepository implements IExcelRepository {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', signedData.signedUrl);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        // Đặt Content-Type chuẩn cho file Excel
+        xhr.setRequestHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable && onProgress) {
@@ -279,11 +278,7 @@ export class SupabaseExcelRepository implements IExcelRepository {
     }
 
     // 3. Xóa file Excel gốc trong storage 'excel-uploads'
-    const sanitizedName = dbFile.name.normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[đĐ]/g, "d")
-      .replace(/[^a-zA-Z0-9.-]/g, "_");
-    const originalFilePath = `${fileId}/${sanitizedName}`;
+    const originalFilePath = `${fileId}/file.xlsx`;
 
     await supabase.storage.from('excel-uploads').remove([originalFilePath]);
 

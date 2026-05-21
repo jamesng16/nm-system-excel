@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Xác định URL của API Supabase động dựa trên domain hiện tại của trình duyệt
-let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+let supabaseUrl = rawSupabaseUrl;
 
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
-  if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname) {
-    // Nếu truy cập bằng IP mạng, tự động đổi URL API sang IP tương ứng
-    supabaseUrl = `http://${hostname}:54321`;
+  // Chỉ tự động đổi sang IP nội bộ khi URL đang dùng localhost (tức là cấu hình chạy local)
+  if (
+    rawSupabaseUrl.includes('localhost') ||
+    rawSupabaseUrl.includes('127.0.0.1')
+  ) {
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname) {
+      supabaseUrl = `http://${hostname}:54321`;
+    }
   }
 }
 

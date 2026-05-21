@@ -4,6 +4,171 @@ import { ExcelRow } from '../domain/entities/ExcelRow';
 import { ProcessingLog } from '../domain/entities/ProcessingLog';
 import { supabase } from '../../../shared/infra/supabase';
 
+type ParsedExcelRow = {
+  rowIndex: number;
+  content: Record<string, string | number | boolean | null>;
+};
+
+const RELATIONSHIP_NAMESPACE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const MAX_BROWSER_PARSED_ROWS = 10000;
+
+function getCellColumn(cellRef: string): string {
+  return cellRef.replace(/[0-9]/g, '');
+}
+
+function getXmlElements(node: Document | Element, tagName: string): Element[] {
+  const namespacedElements = Array.from(node.getElementsByTagNameNS('*', tagName));
+  return namespacedElements.length > 0
+    ? namespacedElements
+    : Array.from(node.getElementsByTagName(tagName));
+}
+
+function assertValidXml(document: Document, label: string): void {
+  const parserError = getXmlElements(document, 'parsererror')[0];
+  if (parserError) {
+    throw new Error(`Lỗi cú pháp XML trong ${label}: ${parserError.textContent || 'Không rõ lỗi'}`);
+  }
+}
+
+function normalizeHeaderName(value: string, fallback: string): string {
+  const name = value.trim() || fallback;
+  if (['__proto__', 'constructor', 'prototype'].includes(name)) {
+    return `${name}_column`;
+  }
+  return name;
+}
+
+function isSafeImageStoragePath(storagePath: string, fileId: string): boolean {
+  return storagePath.startsWith(`files/${fileId}/images/`) && !storagePath.split('/').includes('..');
+}
+
+function getTextContent(node: Element): string {
+  return getXmlElements(node, 't')
+    .map((textNode) => textNode.textContent || '')
+    .join('');
+}
+
+function parseCellValue(cell: Element, sharedStrings: string[]): string | number | boolean | null {
+  const type = cell.getAttribute('t');
+  const valueNode = getXmlElements(cell, 'v')[0];
+  const inlineStringNode = getXmlElements(cell, 'is')[0];
+
+  if (type === 'inlineStr' && inlineStringNode) {
+    return getTextContent(inlineStringNode);
+  }
+
+  const rawValue = valueNode?.textContent || '';
+  if (!rawValue) return null;
+
+  if (type === 's') {
+    return sharedStrings[Number(rawValue)] || '';
+  }
+
+  if (type === 'b') {
+    return rawValue === '1';
+  }
+
+  if (type === 'str') {
+    return rawValue;
+  }
+
+  const numericValue = Number(rawValue);
+  return Number.isNaN(numericValue) ? rawValue : numericValue;
+}
+
+async function parseExcelRows(file: File): Promise<ParsedExcelRow[]> {
+  const JSZip = (await import('jszip')).default;
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const xmlParser = new DOMParser();
+
+  const sharedStringsFile = zip.file('xl/sharedStrings.xml');
+  const sharedStrings: string[] = [];
+  if (sharedStringsFile) {
+    const sharedStringsXml = await sharedStringsFile.async('text');
+    const sharedStringsDoc = xmlParser.parseFromString(sharedStringsXml, 'application/xml');
+    assertValidXml(sharedStringsDoc, 'sharedStrings.xml');
+    for (const item of getXmlElements(sharedStringsDoc, 'si')) {
+      sharedStrings.push(getTextContent(item));
+    }
+  }
+
+  const workbookXml = await zip.file('xl/workbook.xml')?.async('text');
+  if (!workbookXml) {
+    throw new Error('Không tìm thấy workbook.xml trong file Excel.');
+  }
+
+  const workbookDoc = xmlParser.parseFromString(workbookXml, 'application/xml');
+  assertValidXml(workbookDoc, 'workbook.xml');
+  const firstSheet = getXmlElements(workbookDoc, 'sheet')[0];
+  const firstSheetRelId =
+    firstSheet?.getAttributeNS(RELATIONSHIP_NAMESPACE, 'id') || firstSheet?.getAttribute('r:id');
+  if (!firstSheetRelId) {
+    throw new Error('Không tìm thấy sheet đầu tiên trong file Excel.');
+  }
+
+  const relsXml = await zip.file('xl/_rels/workbook.xml.rels')?.async('text');
+  if (!relsXml) {
+    throw new Error('Không tìm thấy workbook relationships trong file Excel.');
+  }
+
+  const relsDoc = xmlParser.parseFromString(relsXml, 'application/xml');
+  assertValidXml(relsDoc, 'workbook.xml.rels');
+  const sheetRel = getXmlElements(relsDoc, 'Relationship')
+    .find((rel) => rel.getAttribute('Id') === firstSheetRelId);
+  const target = sheetRel?.getAttribute('Target');
+  if (!target) {
+    throw new Error('Không tìm thấy đường dẫn sheet đầu tiên trong file Excel.');
+  }
+
+  const normalizedTarget = target.replace(/^\//, '').replace(/^xl\//, '');
+  const sheetPath = `xl/${normalizedTarget}`;
+  const sheetXml = await zip.file(sheetPath)?.async('text');
+  if (!sheetXml) {
+    throw new Error(`Không tìm thấy dữ liệu sheet tại ${sheetPath}.`);
+  }
+
+  const sheetDoc = xmlParser.parseFromString(sheetXml, 'application/xml');
+  assertValidXml(sheetDoc, sheetPath);
+  const headers: Record<string, string> = {};
+  const headerCounts: Record<string, number> = {};
+  const rows: ParsedExcelRow[] = [];
+
+  for (const row of getXmlElements(sheetDoc, 'row')) {
+    const rowIndex = Number(row.getAttribute('r') || 0);
+    const rowData: Record<string, string | number | boolean | null> = Object.create(null);
+
+    for (const cell of getXmlElements(row, 'c')) {
+      const cellRef = cell.getAttribute('r') || '';
+      const column = getCellColumn(cellRef);
+      if (!column) continue;
+      rowData[column] = parseCellValue(cell, sharedStrings);
+    }
+
+    if (rowIndex === 1) {
+      for (const [column, value] of Object.entries(rowData)) {
+        const headerName = normalizeHeaderName(String(value || ''), `Cột ${column}`);
+        headerCounts[headerName] = (headerCounts[headerName] || 0) + 1;
+        headers[column] = headerCounts[headerName] === 1 ? headerName : `${headerName} (${headerCounts[headerName]})`;
+      }
+      continue;
+    }
+
+    if (rowIndex > 1 && Object.keys(rowData).length > 0) {
+      const content: Record<string, string | number | boolean | null> = Object.create(null);
+      for (const [column, value] of Object.entries(rowData)) {
+        content[headers[column] || `Cột ${column}`] = value;
+      }
+      rows.push({ rowIndex, content });
+
+      if (rows.length > MAX_BROWSER_PARSED_ROWS) {
+        throw new Error(`File vượt quá giới hạn xử lý trực tiếp trên trình duyệt (${MAX_BROWSER_PARSED_ROWS} dòng).`);
+      }
+    }
+  }
+
+  return rows;
+}
+
 export class SupabaseExcelRepository implements IExcelRepository {
   async uploadFile(file: File, onProgress?: (percent: number) => void): Promise<ExcelFile> {
     // 1. Tạo bản ghi file trong Postgres với trạng thái ban đầu là 'pending'
@@ -26,60 +191,98 @@ export class SupabaseExcelRepository implements IExcelRepository {
     const fileId = dbFile.id;
 
     try {
-      // 2. Tạo signed upload URL từ Supabase Storage
-      const storagePath = `${fileId}/file.xlsx`;
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('excel-uploads')
-        .createSignedUploadUrl(storagePath);
+      await supabase
+        .from('files')
+        .update({ status: 'processing', updated_at: new Date().toISOString() })
+        .eq('id', fileId);
 
-      if (signedError || !signedData) {
-        throw new Error(`Lỗi tạo Signed Upload URL: ${signedError?.message || 'Không có phản hồi'}`);
-      }
+      const parsedRows = await parseExcelRows(file);
+      const batchSize = 500;
 
-      // 3. Tải file bằng SDK chính thức để tránh lỗi khác biệt signed URL giữa local và cloud
-      const { error: uploadError } = await supabase.storage
-        .from('excel-uploads')
-        .uploadToSignedUrl(storagePath, signedData.token, file, {
-          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        });
-
-      if (uploadError) {
-        throw new Error(`Tải lên storage thất bại: ${uploadError.message}`);
-      }
-
-      if (onProgress) {
-        onProgress(100);
-      }
-
-      // 4. Gọi Edge Function parse-excel bất đồng bộ (Background Job)
-      supabase.functions.invoke('parse-excel', {
-        body: { fileId },
-      }).catch((err) => {
-        console.error('Không thể gọi Edge Function parse-excel:', err);
-        // Fallback sang simulator nếu Edge Function lỗi kết nối
-        this.simulateProcessing(fileId);
-      });
-
-      return {
-        id: dbFile.id,
-        name: dbFile.name,
-        size: Number(dbFile.size),
-        status: dbFile.status as 'pending' | 'processing' | 'completed' | 'failed',
-        totalRows: dbFile.total_rows,
-        processedRows: dbFile.processed_rows,
-        createdAt: dbFile.created_at,
-        updatedAt: dbFile.updated_at,
-      };
-    } catch (err: any) {
-      // Cập nhật trạng thái file thành failed trong cơ sở dữ liệu nếu có lỗi
       await supabase
         .from('files')
         .update({
-          status: 'failed',
-          error_log: err.message || 'Lỗi không xác định trong quá trình tải lên',
+          total_rows: parsedRows.length,
+          processed_rows: 0,
           updated_at: new Date().toISOString(),
         })
         .eq('id', fileId);
+
+      for (let offset = 0; offset < parsedRows.length; offset += batchSize) {
+        const batch = parsedRows.slice(offset, offset + batchSize).map((row) => ({
+          file_id: fileId,
+          row_index: row.rowIndex,
+          content: row.content,
+        }));
+
+        const { error: rowsError } = await supabase.from('excel_data_rows').insert(batch);
+        if (rowsError) {
+          throw new Error(`Lỗi lưu dữ liệu Excel vào database: ${rowsError.message}`);
+        }
+
+        const processedRows = Math.min(offset + batch.length, parsedRows.length);
+        await supabase
+          .from('files')
+          .update({
+            processed_rows: processedRows,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', fileId);
+
+        if (onProgress) {
+          onProgress(Math.round((processedRows / Math.max(parsedRows.length, 1)) * 100));
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      const { data: completedFile, error: completedError } = await supabase
+        .from('files')
+        .update({
+          status: 'completed',
+          processed_rows: parsedRows.length,
+          total_rows: parsedRows.length,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', fileId)
+        .select()
+        .single();
+
+      if (completedError || !completedFile) {
+        throw new Error(`Lỗi hoàn tất xử lý file: ${completedError?.message || 'Không có phản hồi'}`);
+      }
+
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        level: 'info',
+        message: `Đã parse Excel trên trình duyệt và lưu ${parsedRows.length} dòng vào database.`,
+      });
+
+      return {
+        id: completedFile.id,
+        name: completedFile.name,
+        size: Number(completedFile.size),
+        status: completedFile.status as 'pending' | 'processing' | 'completed' | 'failed',
+        totalRows: completedFile.total_rows,
+        processedRows: completedFile.processed_rows,
+        createdAt: completedFile.created_at,
+        updatedAt: completedFile.updated_at,
+      };
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định trong quá trình tải lên';
+      await Promise.allSettled([
+        supabase.from('excel_data_rows').delete().eq('file_id', fileId),
+        supabase
+          .from('files')
+          .update({
+            status: 'failed',
+            processed_rows: 0,
+            total_rows: 0,
+            error_log: errorMessage,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', fileId),
+      ]);
 
       throw err;
     }
@@ -220,7 +423,7 @@ export class SupabaseExcelRepository implements IExcelRepository {
     // 1. Lấy danh sách ảnh liên quan để xóa vật lý trong storage
     const { data: dbImages } = await supabase
       .from('excel_row_images')
-      .select('storage_path')
+      .select('storage_path, file_id')
       .eq('row_id', rowId);
 
     // 2. Xóa dòng dữ liệu trong DB (cascade tự động xóa liên kết trong excel_row_images)
@@ -235,16 +438,19 @@ export class SupabaseExcelRepository implements IExcelRepository {
 
     // 3. Xóa vật lý file trong storage
     if (dbImages && dbImages.length > 0) {
-      const storagePaths = dbImages.map((img) => img.storage_path);
-      await supabase.storage.from('excel-images').remove(storagePaths);
+      const storagePaths = dbImages
+        .map((img) => img.storage_path)
+        .filter((storagePath) => isSafeImageStoragePath(storagePath, dbImages[0].file_id));
+      if (storagePaths.length > 0) {
+        await supabase.storage.from('excel-images').remove(storagePaths);
+      }
     }
   }
 
   async deleteFile(fileId: string): Promise<void> {
-    // 1. Lấy thông tin file record trước để biết tên file gốc
     const { data: dbFile, error: fetchError } = await supabase
       .from('files')
-      .select('*')
+      .select('id')
       .eq('id', fileId)
       .single();
 
@@ -252,7 +458,15 @@ export class SupabaseExcelRepository implements IExcelRepository {
       throw new Error(`Không tìm thấy file để xóa: ${fetchError?.message || ''}`);
     }
 
-    // 2. Xóa bản ghi file trong Postgres (cascade sẽ xóa rows, images, logs trong DB)
+    const { data: dbImages, error: imagesError } = await supabase
+      .from('excel_row_images')
+      .select('storage_path')
+      .eq('file_id', fileId);
+
+    if (imagesError) {
+      throw new Error(`Lỗi lấy danh sách ảnh để xóa: ${imagesError.message}`);
+    }
+
     const { error: deleteError } = await supabase
       .from('files')
       .delete()
@@ -262,19 +476,13 @@ export class SupabaseExcelRepository implements IExcelRepository {
       throw new Error(`Lỗi xóa file record trong database: ${deleteError.message}`);
     }
 
-    // 3. Xóa file Excel gốc trong storage 'excel-uploads'
-    const originalFilePath = `${fileId}/file.xlsx`;
-
-    await supabase.storage.from('excel-uploads').remove([originalFilePath]);
-
-    // 4. Xóa toàn bộ ảnh liên quan trong storage 'excel-images'
-    const { data: filesInImagesBucket } = await supabase.storage
-      .from('excel-images')
-      .list(`files/${fileId}/images`);
-
-    if (filesInImagesBucket && filesInImagesBucket.length > 0) {
-      const pathsToDelete = filesInImagesBucket.map((f) => `files/${fileId}/images/${f.name}`);
-      await supabase.storage.from('excel-images').remove(pathsToDelete);
+    if (dbImages && dbImages.length > 0) {
+      const pathsToDelete = dbImages
+        .map((img) => img.storage_path)
+        .filter((storagePath) => isSafeImageStoragePath(storagePath, fileId));
+      if (pathsToDelete.length > 0) {
+        await supabase.storage.from('excel-images').remove(pathsToDelete);
+      }
     }
   }
 
@@ -330,79 +538,4 @@ export class SupabaseExcelRepository implements IExcelRepository {
     };
   }
 
-  private simulateProcessing(fileId: string) {
-    let step = 0;
-    const totalRows = 100;
-
-    const interval = setInterval(async () => {
-      // 1. Kiểm tra xem file có còn tồn tại không
-      const { data: file, error: fetchErr } = await supabase
-        .from('files')
-        .select('*')
-        .eq('id', fileId)
-        .single();
-
-      if (fetchErr || !file) {
-        clearInterval(interval);
-        return;
-      }
-
-      try {
-        if (step === 0) {
-          // Bước 1: Chuyển sang 'processing' và xử lý 30%
-          await supabase
-            .from('files')
-            .update({
-              status: 'processing',
-              total_rows: totalRows,
-              processed_rows: 30,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', fileId);
-
-          step++;
-        } else if (step === 1) {
-          // Bước 2: Tạo dòng dữ liệu mock lưu vào Postgres & cập nhật lên 70%
-          const mockRows = Array.from({ length: 15 }).map((_, index) => ({
-            file_id: fileId,
-            row_index: index + 1,
-            content: {
-              'Mã nhân viên': `NV${1000 + index}`,
-              'Họ và tên': index % 2 === 0 ? 'Nguyễn Văn A' : 'Trần Thị B',
-              'Phòng ban': index % 3 === 0 ? 'Phát triển' : 'Kinh doanh',
-              'Lương cơ bản': 15000000 + index * 500000,
-              'Trạng thái': 'Hoạt động',
-            },
-          }));
-
-          await supabase.from('excel_data_rows').insert(mockRows);
-
-          await supabase
-            .from('files')
-            .update({
-              processed_rows: 70,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', fileId);
-
-          step++;
-        } else if (step === 2) {
-          // Bước 3: Hoàn thành 100%
-          await supabase
-            .from('files')
-            .update({
-              status: 'completed',
-              processed_rows: totalRows,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', fileId);
-
-          clearInterval(interval);
-        }
-      } catch (err) {
-        console.error('Lỗi trong quá trình mô phỏng xử lý tệp tin:', err);
-        clearInterval(interval);
-      }
-    }, 2000);
-  }
 }

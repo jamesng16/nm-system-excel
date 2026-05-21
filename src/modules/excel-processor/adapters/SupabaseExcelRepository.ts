@@ -27,44 +27,29 @@ export class SupabaseExcelRepository implements IExcelRepository {
 
     try {
       // 2. Tạo signed upload URL từ Supabase Storage
-      // Sử dụng tên cố định 'file.xlsx' bên trong thư mục mang ID của file
-      // Cách này giúp loại bỏ hoàn toàn lỗi ký tự đặc biệt trong URL
+      const storagePath = `${fileId}/file.xlsx`;
       const { data: signedData, error: signedError } = await supabase.storage
         .from('excel-uploads')
-        .createSignedUploadUrl(`${fileId}/file.xlsx`);
+        .createSignedUploadUrl(storagePath);
 
       if (signedError || !signedData) {
         throw new Error(`Lỗi tạo Signed Upload URL: ${signedError?.message || 'Không có phản hồi'}`);
       }
 
-      // 3. Thực hiện tải file lên bằng XMLHttpRequest để theo dõi tiến trình thực tế
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', signedData.signedUrl);
-        // Đặt Content-Type chuẩn cho file Excel
-        xhr.setRequestHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      // 3. Tải file bằng SDK chính thức để tránh lỗi khác biệt signed URL giữa local và cloud
+      const { error: uploadError } = await supabase.storage
+        .from('excel-uploads')
+        .uploadToSignedUrl(storagePath, signedData.token, file, {
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable && onProgress) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            onProgress(percent);
-          }
-        };
+      if (uploadError) {
+        throw new Error(`Tải lên storage thất bại: ${uploadError.message}`);
+      }
 
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Tải lên storage thất bại với mã trạng thái: ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => {
-          reject(new Error('Lỗi mạng xảy ra trong quá trình tải tệp lên storage.'));
-        };
-
-        xhr.send(file);
-      });
+      if (onProgress) {
+        onProgress(100);
+      }
 
       // 4. Gọi Edge Function parse-excel bất đồng bộ (Background Job)
       supabase.functions.invoke('parse-excel', {

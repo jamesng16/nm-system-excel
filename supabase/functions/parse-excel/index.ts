@@ -47,7 +47,7 @@ serve(async (req: Request) => {
     }
 
     // 2. Tải tệp từ Storage về ổ đĩa tạm cục bộ của Edge Function
-    const storagePath = `${fileId}/${fileRecord.name}`;
+    const storagePath = `${fileId}/file.xlsx`;
     console.log(`[Edge Function] Đang tải tệp ${storagePath} từ storage bucket...`);
 
     const { data: fileBlob, error: downloadError } = await supabase.storage

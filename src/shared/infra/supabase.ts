@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!rawSupabaseUrl || !supabaseAnonKey) {
+  throw new Error('Thiếu cấu hình VITE_SUPABASE_URL hoặc VITE_SUPABASE_ANON_KEY.');
+}
+
 let supabaseUrl = rawSupabaseUrl;
 
 if (typeof window !== 'undefined') {
@@ -15,7 +21,5 @@ if (typeof window !== 'undefined') {
     }
   }
 }
-
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

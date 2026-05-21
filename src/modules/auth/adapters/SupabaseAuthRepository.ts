@@ -17,7 +17,7 @@ export class SupabaseAuthRepository implements IAuthRepository {
       throw new Error('Không tìm thấy thông tin người dùng sau khi đăng nhập.');
     }
 
-    const metadataRole = data.user.user_metadata?.role;
+    const metadataRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
     const role: 'admin' | 'guest' = metadataRole === 'admin' ? 'admin' : 'guest';
 
     return {
@@ -41,7 +41,7 @@ export class SupabaseAuthRepository implements IAuthRepository {
     }
 
     const user = session.user;
-    const metadataRole = user.user_metadata?.role;
+    const metadataRole = user.app_metadata?.role || user.user_metadata?.role;
     const role: 'admin' | 'guest' = metadataRole === 'admin' ? 'admin' : 'guest';
 
     return {
@@ -60,7 +60,7 @@ export class SupabaseAuthRepository implements IAuthRepository {
         }
 
         const user = session.user;
-        const metadataRole = user.user_metadata?.role;
+        const metadataRole = user.app_metadata?.role || user.user_metadata?.role;
         const role: 'admin' | 'guest' = metadataRole === 'admin' ? 'admin' : 'guest';
 
         callback({

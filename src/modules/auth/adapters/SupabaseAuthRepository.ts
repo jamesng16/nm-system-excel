@@ -1,50 +1,78 @@
 import { IAuthRepository } from '../domain/repositories/IAuthRepository';
 import { User } from '../domain/entities/User';
+import { supabase } from '../../../shared/infra/supabase';
 
 export class SupabaseAuthRepository implements IAuthRepository {
-  private currentUser: User | null = null;
-  private listeners: ((user: User | null) => void)[] = [];
+  async login(email: string, password: string): Promise<User> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  async login(email: string, _password: string): Promise<User> {
-    // Giả lập độ trễ mạng
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    let role: 'admin' | 'guest' = 'guest';
-    if (email.toLowerCase().startsWith('admin')) {
-      role = 'admin';
+    if (error) {
+      throw new Error(error.message);
     }
 
-    const mockUser: User = {
-      id: 'mock-user-id-' + Math.random().toString(36).substring(2, 9),
-      email: email,
+    if (!data.user) {
+      throw new Error('Không tìm thấy thông tin người dùng sau khi đăng nhập.');
+    }
+
+    const metadataRole = data.user.user_metadata?.role;
+    const role: 'admin' | 'guest' = metadataRole === 'admin' ? 'admin' : 'guest';
+
+    return {
+      id: data.user.id,
+      email: data.user.email || email,
       role: role,
     };
-
-    this.currentUser = mockUser;
-    this.notifyListeners();
-    return mockUser;
   }
 
   async logout(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    this.currentUser = null;
-    this.notifyListeners();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
+    }
   }
 
   async getCurrentUser(): Promise<User | null> {
-    return this.currentUser;
-  }
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session || !session.user) {
+      return null;
+    }
 
-  onAuthStateChange(callback: (user: User | null) => void): () => void {
-    this.listeners.push(callback);
-    callback(this.currentUser);
+    const user = session.user;
+    const metadataRole = user.user_metadata?.role;
+    const role: 'admin' | 'guest' = metadataRole === 'admin' ? 'admin' : 'guest';
 
-    return () => {
-      this.listeners = this.listeners.filter((l) => l !== callback);
+    return {
+      id: user.id,
+      email: user.email || '',
+      role: role,
     };
   }
 
-  private notifyListeners() {
-    this.listeners.forEach((listener) => listener(this.currentUser));
+  onAuthStateChange(callback: (user: User | null) => void): () => void {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session || !session.user) {
+          callback(null);
+          return;
+        }
+
+        const user = session.user;
+        const metadataRole = user.user_metadata?.role;
+        const role: 'admin' | 'guest' = metadataRole === 'admin' ? 'admin' : 'guest';
+
+        callback({
+          id: user.id,
+          email: user.email || '',
+          role: role,
+        });
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }
 }

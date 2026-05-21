@@ -7,10 +7,10 @@ Bản lộ trình phát triển của dự án Excel Uploader & Processor. Hệ 
 ## Phases
 
 - [x] **Phase 1: Local Supabase & DB Migrations** - Khởi động local Supabase Docker, cấu hình API/DB ports, chạy SQL migrations và bootstrap bộ khung module-level Clean Architecture cho React. (completed 2026-05-20)
-- [ ] **Phase 2: Auth and RLS Configuration** - Thiết lập đăng nhập, quản lý vai trò Admin/Guest, viết các quy định Row Level Security (RLS) bảo mật dữ liệu ở tầng database và ẩn giao diện ghi sửa đối với Guest.
-- [ ] **Phase 3: Chunked Upload & Tracking** - Xây dựng giao diện upload file lớn không bị timeout trên Client, đồng bộ trạng thái tệp Ingestion trong database.
-- [ ] **Phase 4: Async Deno Stream Parser & Ingestion** - Phát triển parser stream trên Deno Edge Function để parse file lớn tiết kiệm RAM, trích xuất ảnh nhúng lưu lên storage, bulk insert dữ liệu vào Postgres.
-- [ ] **Phase 5: Dashboard and Data Management** - Hoàn thiện UI grid dữ liệu (phân trang, search, lọc), form chi tiết cho phép xem ảnh và sửa text cho Admin, log error viewer.
+- [x] **Phase 2: Auth and RLS Configuration** - Thiết lập đăng nhập, quản lý vai trò Admin/Guest, viết các quy định Row Level Security (RLS) bảo mật dữ liệu ở tầng database và ẩn giao diện ghi sửa đối với Guest. (completed 2026-05-21)
+- [x] **Phase 3: Chunked Upload & Tracking** - Xây dựng giao diện upload file lớn không bị timeout trên Client, đồng bộ trạng thái tệp Ingestion trong database. (completed 2026-05-21)
+- [x] **Phase 4: Async Deno Stream Parser & Ingestion** - Phát triển parser stream trên Deno Edge Function để parse file lớn tiết kiệm RAM, trích xuất ảnh nhúng lưu lên storage, bulk insert dữ liệu vào Postgres. (completed 2026-05-21)
+- [x] **Phase 5: Dashboard and Data Management** - Hoàn thiện UI grid dữ liệu (phân trang, search, lọc), form chi tiết cho phép xem ảnh và sửa text cho Admin, log error viewer. (completed 2026-05-21)
 
 ---
 
@@ -68,8 +68,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Viết Deno Edge Function parse Excel stream sử dụng các thư viện stream tối ưu.
-- [ ] 04-02: Viết logic giải nén ảnh nhúng, upload lên Storage và liên kết URL ảnh với dòng dữ liệu text tương ứng qua bảng quan hệ phụ.
+- [x] 04-01: Viết Deno Edge Function parse Excel stream sử dụng các thư viện stream tối ưu.
+- [x] 04-02: Viết logic giải nén ảnh nhúng, upload lên Storage và liên kết URL ảnh với dòng dữ liệu text tương ứng qua bảng quan hệ phụ.
 
 ### Phase 5: Dashboard and Data Management
 **Goal**: Thiết kế màn hình dashboard, grid dữ liệu lớn (phân trang, search, lọc) và panel cập nhật thông tin cho Admin trên frontend.
@@ -82,8 +82,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Phát triển dashboard theo dõi tiến trình upload, parsing và màn hình log lỗi Ingestion.
-- [ ] 05-02: Phát triển grid dữ liệu hiệu năng cao (pagination, column search) và form cập nhật chi tiết.
+- [x] 05-01: Phát triển dashboard theo dõi tiến trình upload, parsing và màn hình log lỗi Ingestion.
+- [x] 05-02: Phát triển grid dữ liệu hiệu năng cao (pagination, column search) và form cập nhật chi tiết.
 
 ---
 
@@ -95,10 +95,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Local Supabase & DB Migrations | 2/2 | Complete    | 2026-05-20 |
-| 2. Auth and RLS Configuration | 0/2 | Not started | - |
-| 3. Chunked Upload & Tracking | 0/2 | Not started | - |
-| 4. Async Deno Stream Parser & Ingestion | 0/2 | Not started | - |
-| 5. Dashboard and Data Management | 0/2 | Not started | - |
+| 2. Auth and RLS Configuration | 2/2 | Complete | 2026-05-21 |
+| 3. Chunked Upload & Tracking | 2/2 | Complete | 2026-05-21 |
+| 4. Async Deno Stream Parser & Ingestion | 2/2 | Complete | 2026-05-21 |
+| 5. Dashboard and Data Management | 2/2 | Complete | 2026-05-21 |
 
 ---
 *Roadmap defined: 2026-05-20*
